@@ -1,0 +1,168 @@
+{
+	"name": "Pl_copy_database",
+	"properties": {
+		"activities": [
+			{
+				"name": "Lookup_tables",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"sqlReaderQuery": " SELECT TABLE_SCHEMA, TABLE_NAME\n    FROM INFORMATION_SCHEMA.TABLES\n     WHERE TABLE_TYPE = 'BASE TABLE'",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "SqlServerOmpremTable",
+						"type": "DatasetReference",
+						"parameters": {
+							"table_name": "placeholder",
+							"table_schema": "dbo",
+							"db_name": {
+								"value": "@pipeline().parameters.db_name",
+								"type": "Expression"
+							}
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "ForEach_table",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Lookup_tables",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup_tables').output.value",
+						"type": "Expression"
+					},
+					"batchCount": 4,
+					"activities": [
+						{
+							"name": "Copy data_table",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "SqlServerSource",
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "SqlServerOmpremTable",
+									"type": "DatasetReference",
+									"parameters": {
+										"table_name": {
+											"value": "@item().table_name",
+											"type": "Expression"
+										},
+										"table_schema": {
+											"value": "@item().table_schema",
+											"type": "Expression"
+										},
+										"db_name": {
+											"value": "@pipeline().parameters.db_name",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "input_sink_dataset",
+									"type": "DatasetReference",
+									"parameters": {
+										"inputcontainer": {
+											"value": "@pipeline().parameters.sink_container",
+											"type": "Expression"
+										},
+										"inputdirectory": {
+											"value": "@{pipeline().parameters.sink_folder}/@{pipeline().parameters.db_name}/@{item().TABLE_SCHEMA}",
+											"type": "Expression"
+										},
+										"inputfile": {
+											"value": "@{item().TABLE_NAME}.@{pipeline().parameters.file_extension}",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"db_name": {
+				"type": "string"
+			},
+			"sink_container": {
+				"type": "string",
+				"defaultValue": "raw"
+			},
+			"sink_folder": {
+				"type": "string",
+				"defaultValue": "bronze"
+			},
+			"file_extension": {
+				"type": "string",
+				"defaultValue": ".parquet"
+			}
+		},
+		"variables": {
+			"p_lodeDate": {
+				"type": "String"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-10-16T18:02:53Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

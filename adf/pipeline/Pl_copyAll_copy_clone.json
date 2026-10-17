@@ -1,0 +1,111 @@
+{
+	"name": "Pl_copyAll_copy_clone",
+	"properties": {
+		"description": "This is a pipeline to copy all table",
+		"activities": [
+			{
+				"name": "Lookup_all_database",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"sqlReaderQuery": "SELECT\n    name AS database_name\nFROM sys.databases\nWHERE state_desc = 'ONLINE'\n  AND database_id > 4\nORDER BY name;",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "SqlServerOmpremTable",
+						"type": "DatasetReference",
+						"parameters": {
+							"table_name": "amazon",
+							"table_schema": "dbo",
+							"db_name": "master"
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "ForEach_database",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Lookup_all_database",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Lookup_all_database').output.value",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"batchCount": 4,
+					"activities": [
+						{
+							"name": "Execute Pipeline-childPipeline",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"policy": {
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "Pl_copy_database",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": false,
+								"parameters": {
+									"db_name": {
+										"value": "@item().database_name",
+										"type": "Expression"
+									},
+									"sink_container": {
+										"value": "@pipeline().parameters.sink_container",
+										"type": "Expression"
+									},
+									"sink_folder": {
+										"value": "@pipeline().parameters.sink_folder",
+										"type": "Expression"
+									},
+									"file_extension": {
+										"value": "@pipeline().parameters.file_extension",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"sink_container": {
+				"type": "string"
+			},
+			"sink_folder": {
+				"type": "string",
+				"defaultValue": "bronze"
+			},
+			"file_extension": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-10-16T18:02:54Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

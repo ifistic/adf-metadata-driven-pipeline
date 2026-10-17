@@ -1,0 +1,81 @@
+{
+	"name": "SqlServerOmpremTable",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "SqlServer2",
+			"type": "LinkedServiceReference",
+			"parameters": {
+				"database": {
+					"value": "@dataset().db_name",
+					"type": "Expression"
+				}
+			}
+		},
+		"parameters": {
+			"table_name": {
+				"type": "string"
+			},
+			"table_schema": {
+				"type": "string"
+			},
+			"db_name": {
+				"type": "string",
+				"defaultValue": "master"
+			}
+		},
+		"annotations": [],
+		"type": "SqlServerTable",
+		"schema": [
+			{
+				"name": "Customer_Name",
+				"type": "nvarchar"
+			},
+			{
+				"name": "State",
+				"type": "nvarchar"
+			},
+			{
+				"name": "Product",
+				"type": "nvarchar"
+			},
+			{
+				"name": "Units_Sold",
+				"type": "tinyint",
+				"precision": 3
+			},
+			{
+				"name": "Unit_Price",
+				"type": "float",
+				"precision": 15
+			},
+			{
+				"name": "Total_Sale",
+				"type": "float",
+				"precision": 15
+			},
+			{
+				"name": "Sale_Date",
+				"type": "date"
+			},
+			{
+				"name": "Sales_Channel",
+				"type": "nvarchar"
+			},
+			{
+				"name": "Order_ID",
+				"type": "nvarchar"
+			}
+		],
+		"typeProperties": {
+			"schema": {
+				"value": "@dataset().table_schema",
+				"type": "Expression"
+			},
+			"table": {
+				"value": "@dataset().table_name",
+				"type": "Expression"
+			}
+		}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

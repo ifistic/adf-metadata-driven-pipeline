@@ -1,0 +1,17 @@
+{
+	"name": "15_mins_trigger",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Stopped",
+		"pipelines": [],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Minute",
+				"interval": 15,
+				"startTime": "2026-10-13T05:22:00",
+				"timeZone": "GMT Standard Time"
+			}
+		}
+	}
+}

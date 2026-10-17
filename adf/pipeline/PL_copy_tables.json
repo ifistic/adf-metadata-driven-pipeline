@@ -1,0 +1,134 @@
+{
+	"name": "PL_copy_tables",
+	"properties": {
+		"activities": [
+			{
+				"name": "ForEach_tables",
+				"type": "ForEach",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@pipeline().parameters.pTables",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Copy_Tables",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "SqlServerSource",
+									"sqlReaderQuery": {
+										"value": "@concat(\n    'SELECT * FROM [',\n    pipeline().parameters.pDatabase,\n    '].[',\n    item().table_schema,\n    '].[',\n    item().table_name,\n    ']'\n)",
+										"type": "Expression"
+									},
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "SqlServerOmpremTable",
+									"type": "DatasetReference",
+									"parameters": {
+										"table_name": {
+											"value": "@item().table_name",
+											"type": "Expression"
+										},
+										"table_schema": {
+											"value": "@item().table_schema",
+											"type": "Expression"
+										},
+										"db_name": "master"
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "input_sink_dataset",
+									"type": "DatasetReference",
+									"parameters": {
+										"inputcontainer": {
+											"value": "@pipeline().parameters.inputcontainer",
+											"type": "Expression"
+										},
+										"inputdirectory": {
+											"value": "@concat(\n    pipeline().parameters.inputfolder,\n    '/',\n    pipeline().parameters.pDatabase,\n    '/',\n    item().table_schema\n)",
+											"type": "Expression"
+										},
+										"inputfile": {
+											"value": "@concat(\n    item().table_name,\n    '.csv'\n)",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"pTables": {
+				"type": "array"
+			},
+			"pDatabase": {
+				"type": "string"
+			},
+			"inputcontainer": {
+				"type": "string"
+			},
+			"inputfolder": {
+				"type": "string"
+			},
+			"inputfile": {
+				"type": "string"
+			},
+			"sink_container": {
+				"type": "string",
+				"defaultValue": "raw"
+			},
+			"sink_folder": {
+				"type": "string",
+				"defaultValue": "bronze"
+			},
+			"file_extension": {
+				"type": "string",
+				"defaultValue": "parquet"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-10-12T19:32:32Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

@@ -1,0 +1,45 @@
+{
+	"name": "DelimitedcsvFromBlob",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzureBlobStorage1",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"table_schema": {
+				"type": "string"
+			},
+			"table_name": {
+				"type": "string"
+			},
+			"ouptput_folder": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobStorageLocation",
+				"fileName": {
+					"value": "@dataset().table_name",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "@dataset().table_schema",
+					"type": "Expression"
+				},
+				"container": {
+					"value": "@dataset().ouptput_folder",
+					"type": "Expression"
+				}
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\\",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": []
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

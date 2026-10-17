@@ -1,0 +1,45 @@
+{
+	"name": "MetadataSet",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzureDataLakeStorage1",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"inputcontainer": {
+				"type": "string"
+			},
+			"inputfolder": {
+				"type": "string"
+			},
+			"iinputfile": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "DelimitedText",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@dataset().iinputfile",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "@dataset().inputfolder",
+					"type": "Expression"
+				},
+				"fileSystem": {
+					"value": "@dataset().inputcontainer",
+					"type": "Expression"
+				}
+			},
+			"columnDelimiter": ",",
+			"escapeChar": "\"",
+			"firstRowAsHeader": true,
+			"quoteChar": "\""
+		},
+		"schema": []
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}

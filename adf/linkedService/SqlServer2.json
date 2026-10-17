@@ -1,0 +1,27 @@
+{
+	"name": "SqlServer2",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"parameters": {
+			"database": {
+				"type": "string",
+				"defaultValue": "master"
+			}
+		},
+		"annotations": [],
+		"type": "SqlServer",
+		"typeProperties": {
+			"server": "localhost",
+			"database": "@{linkedService().database}",
+			"encrypt": "optional",
+			"trustServerCertificate": true,
+			"authenticationType": "SQL",
+			"userName": "ifiok",
+			"encryptedCredential": "eyJDcmVkZW50aWFsSWQiOiJhOGZhNWExZC1jMDAyLTRiMWUtYjM4OS1mMTk0N2YzNGJmNjYiLCJWZXJzaW9uIjoiMi4wIiwiQ2xhc3NUeXBlIjoiTWljcm9zb2Z0LkRhdGFQcm94eS5Db3JlLkludGVyU2VydmljZURhdGFDb250cmFjdC5DcmVkZW50aWFsU1UwNkNZMTQifQ=="
+		},
+		"connectVia": {
+			"referenceName": "integrationRuntime13",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

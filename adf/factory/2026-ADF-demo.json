@@ -1,0 +1,15 @@
+{
+	"name": "2026-ADF-demo",
+	"properties": {
+		"trustModeClaimForMi": {
+			"value": "Disabled",
+			"editable": true
+		}
+	},
+	"location": "ukwest",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "f3a180ce-289a-4dbd-8d60-1ff096ad1052",
+		"tenantId": "c68cbfc4-8e65-40b8-a8a7-652e6945f220"
+	}
+}
