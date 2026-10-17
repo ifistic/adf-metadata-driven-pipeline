@@ -1,0 +1,60 @@
+{
+	"$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentParameters.json#",
+	"contentVersion": "1.0.0.0",
+	"parameters": {
+		"factoryName": {
+			"value": "2026-ADF-demo"
+		},
+		"AzureSqlDatabaseFromBronze_password": {
+			"value": ""
+		},
+		"LS_AzureSQL_password": {
+			"value": ""
+		},
+		"SqlServer2_password": {
+			"value": ""
+		},
+		"SqlServerFromOnprem_connectionString": {
+			"value": ""
+		},
+		"AzureBlobStorage1_properties_typeProperties_serviceEndpoint": {
+			"value": "https://ifiokstore1.blob.core.windows.net/"
+		},
+		"AzureDataLakeStorage1_properties_typeProperties_url": {
+			"value": "https://ifiokstoragegen2.dfs.core.windows.net/"
+		},
+		"AzureSqlDatabaseFromBronze_properties_typeProperties_server": {
+			"value": "ifistic.database.windows.net"
+		},
+		"AzureSqlDatabaseFromBronze_properties_typeProperties_database": {
+			"value": "SalesDB"
+		},
+		"AzureSqlDatabaseFromBronze_properties_typeProperties_userName": {
+			"value": "ifistic"
+		},
+		"LS_AzureSQL_properties_typeProperties_server": {
+			"value": "ifistic.database.windows.net"
+		},
+		"LS_AzureSQL_properties_typeProperties_database": {
+			"value": "@{linkedService().DBName}"
+		},
+		"LS_AzureSQL_properties_typeProperties_userName": {
+			"value": "ifistic"
+		},
+		"SqlServer2_properties_typeProperties_server": {
+			"value": "localhost"
+		},
+		"SqlServer2_properties_typeProperties_database": {
+			"value": "@{linkedService().database}"
+		},
+		"SqlServer2_properties_typeProperties_userName": {
+			"value": "ifiok"
+		},
+		"containerUri": {
+			"value": ""
+		},
+		"containerSasToken": {
+			"value": ""
+		}
+	}
+}
