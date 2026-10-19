@@ -222,7 +222,7 @@
 					"location": {
 						"type": "AzureBlobFSLocation",
 						"folderPath": "AdventureWorksLT2025/SalesLT",
-						"fileSystem": "bronze"
+						"fileSystem": "input"
 					},
 					"columnDelimiter": ",",
 					"escapeChar": "\\",
@@ -964,7 +964,7 @@
 						"type": "ForEach",
 						"dependsOn": [
 							{
-								"activity": "Get MetadataFiles",
+								"activity": "FilterOnlyParquetFiles",
 								"dependencyConditions": [
 									"Succeeded"
 								]
@@ -973,7 +973,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"items": {
-								"value": "@activity('Get MetadataFiles').output.childItems",
+								"value": "@activity('FilterOnlyParquetFiles').output.value",
 								"type": "Expression"
 							},
 							"activities": [
@@ -991,14 +991,16 @@
 									"userProperties": [],
 									"typeProperties": {
 										"source": {
-											"type": "DelimitedTextSource",
+											"type": "ParquetSource",
 											"storeSettings": {
 												"type": "AzureBlobFSReadSettings",
-												"recursive": true,
+												"recursive": false,
+												"wildcardFolderPath": "AdventureWorksLT2025/SalesLT",
+												"wildcardFileName": "*.parquet",
 												"enablePartitionDiscovery": false
 											},
 											"formatSettings": {
-												"type": "DelimitedTextReadSettings"
+												"type": "ParquetReadSettings"
 											}
 										},
 										"sink": {
@@ -1022,12 +1024,12 @@
 									},
 									"inputs": [
 										{
-											"referenceName": "input_sink_dataset",
+											"referenceName": "ParquetSink_dataset",
 											"type": "DatasetReference",
 											"parameters": {
-												"inputcontainer": "bronze",
-												"inputdirectory": "AdventureWorksLT2025/SalesLT",
-												"inputfile": {
+												"container": "input",
+												"folder": " AdventureWorksLT2025/SalesLT",
+												"file": {
 													"value": "@item().name",
 													"type": "Expression"
 												}
@@ -1039,8 +1041,8 @@
 											"referenceName": "ParquetSink_dataset",
 											"type": "DatasetReference",
 											"parameters": {
-												"container": "inout",
-												"folder": "placeholder",
+												"container": "input",
+												"folder": "example",
 												"file": {
 													"value": "@item().name",
 													"type": "Expression"
@@ -1051,6 +1053,29 @@
 								}
 							]
 						}
+					},
+					{
+						"name": "FilterOnlyParquetFiles",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "Get MetadataFiles",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Get MetadataFiles').output.childItems\n ",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@and(equals(item().type, 'File'), endsWith(item().name, '.parquet'))\n",
+								"type": "Expression"
+							}
+						}
 					}
 				],
 				"policy": {
@@ -1060,7 +1085,6 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/Getmetadataset')]",
-				"[concat(variables('factoryId'), '/datasets/input_sink_dataset')]",
 				"[concat(variables('factoryId'), '/datasets/ParquetSink_dataset')]"
 			]
 		},
