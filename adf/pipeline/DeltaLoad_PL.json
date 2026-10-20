@@ -22,7 +22,12 @@
 					},
 					"dataset": {
 						"referenceName": "AzureSqlTable_sales",
-						"type": "DatasetReference"
+						"type": "DatasetReference",
+						"parameters": {
+							"dbname": "sales_db",
+							"schema": "dbo",
+							"table": "OldWatermark"
+						}
 					}
 				}
 			},
@@ -37,7 +42,24 @@
 					"secureOutput": false,
 					"secureInput": false
 				},
-				"userProperties": []
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "AzureSqlSource",
+						"sqlReaderQuery": "SELECT MAX(ModifiedDate) AS NewWatermark\nFROM dbo.Customer;",
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "AzureSqlTable_sales",
+						"type": "DatasetReference",
+						"parameters": {
+							"dbname": "sales_db",
+							"schema": "dbo",
+							"table": "Customer"
+						}
+					}
+				}
 			},
 			{
 				"name": "Copy data_for_delta_load",
@@ -65,8 +87,56 @@
 				},
 				"userProperties": [],
 				"typeProperties": {
-					"enableStaging": false
-				}
+					"source": {
+						"type": "SqlServerSource",
+						"sqlReaderQuery": {
+							"value": "@concat(\n    'SELECT * FROM dbo.Customer WHERE ModifiedDate > ''',\n    activity('Lookup_Oldwatermark').output.firstRow.oldwatermark,\n    ''' AND ModifiedDate <= ''',\n    activity('Lookup_newwatermark').output.firstRow.NewWatermark,\n    ''''\n)",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "ParquetSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "ParquetWriteSettings"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "SqlServerOmpremTable",
+						"type": "DatasetReference",
+						"parameters": {
+							"table_name": "customer",
+							"table_schema": "demo_db",
+							"db_name": "master"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "ParquetSink_dataset",
+						"type": "DatasetReference",
+						"parameters": {
+							"container": "input ",
+							"folder": "raw",
+							"file": "delta.csv"
+						}
+					}
+				]
 			}
 		],
 		"annotations": []
