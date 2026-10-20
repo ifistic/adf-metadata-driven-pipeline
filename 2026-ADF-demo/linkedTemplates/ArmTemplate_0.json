@@ -1203,6 +1203,160 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/DeltaLoad_PL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup_Oldwatermark",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "AzureSqlTable_sales",
+								"type": "DatasetReference",
+								"parameters": {
+									"dbname": "sales_db",
+									"schema": "dbo",
+									"table": "OldWatermark"
+								}
+							}
+						}
+					},
+					{
+						"name": "Lookup_newwatermark",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT MAX(ModifiedDate) AS NewWatermark\nFROM dbo.Customer;",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "AzureSqlTable_sales",
+								"type": "DatasetReference",
+								"parameters": {
+									"dbname": "sales_db",
+									"schema": "dbo",
+									"table": "Customer"
+								}
+							}
+						}
+					},
+					{
+						"name": "Copy data_for_delta_load",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Lookup_Oldwatermark",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Lookup_newwatermark",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "SqlServerSource",
+								"sqlReaderQuery": {
+									"value": "@concat(\n    'SELECT * FROM dbo.Customer WHERE ModifiedDate > ''',\n    activity('Lookup_Oldwatermark').output.firstRow.oldwatermark,\n    ''' AND ModifiedDate <= ''',\n    activity('Lookup_newwatermark').output.firstRow.NewWatermark,\n    ''''\n)",
+									"type": "Expression"
+								},
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "ParquetSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "ParquetWriteSettings"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "SqlServerOmpremTable",
+								"type": "DatasetReference",
+								"parameters": {
+									"table_name": "customer",
+									"table_schema": "demo_db",
+									"db_name": "master"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ParquetSink_dataset",
+								"type": "DatasetReference",
+								"parameters": {
+									"container": "input ",
+									"folder": "raw",
+									"file": "delta.csv"
+								}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/AzureSqlTable_sales')]",
+				"[concat(variables('factoryId'), '/datasets/SqlServerOmpremTable')]",
+				"[concat(variables('factoryId'), '/datasets/ParquetSink_dataset')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/PL_copy_tables')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -1338,182 +1492,6 @@
 				},
 				"annotations": [],
 				"lastPublishTime": "2026-10-12T19:32:32Z"
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/SqlServerOmpremTable')]",
-				"[concat(variables('factoryId'), '/datasets/input_sink_dataset')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/Pl_copy_database')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Lookup_tables",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlServerSource",
-								"sqlReaderQuery": " SELECT TABLE_SCHEMA, TABLE_NAME\n    FROM INFORMATION_SCHEMA.TABLES\n     WHERE TABLE_TYPE = 'BASE TABLE'",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "SqlServerOmpremTable",
-								"type": "DatasetReference",
-								"parameters": {
-									"table_name": "placeholder",
-									"table_schema": "dbo",
-									"db_name": {
-										"value": "@pipeline().parameters.db_name",
-										"type": "Expression"
-									}
-								}
-							},
-							"firstRowOnly": false
-						}
-					},
-					{
-						"name": "ForEach_table",
-						"type": "ForEach",
-						"dependsOn": [
-							{
-								"activity": "Lookup_tables",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@activity('Lookup_tables').output.value",
-								"type": "Expression"
-							},
-							"batchCount": 4,
-							"activities": [
-								{
-									"name": "Copy data_table",
-									"type": "Copy",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlServerSource",
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"sink": {
-											"type": "DelimitedTextSink",
-											"storeSettings": {
-												"type": "AzureBlobFSWriteSettings"
-											},
-											"formatSettings": {
-												"type": "DelimitedTextWriteSettings",
-												"quoteAllText": true,
-												"fileExtension": ".txt"
-											}
-										},
-										"enableStaging": false,
-										"translator": {
-											"type": "TabularTranslator",
-											"typeConversion": true,
-											"typeConversionSettings": {
-												"allowDataTruncation": true,
-												"treatBooleanAsNumber": false
-											}
-										}
-									},
-									"inputs": [
-										{
-											"referenceName": "SqlServerOmpremTable",
-											"type": "DatasetReference",
-											"parameters": {
-												"table_name": {
-													"value": "@item().table_name",
-													"type": "Expression"
-												},
-												"table_schema": {
-													"value": "@item().table_schema",
-													"type": "Expression"
-												},
-												"db_name": {
-													"value": "@pipeline().parameters.db_name",
-													"type": "Expression"
-												}
-											}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "input_sink_dataset",
-											"type": "DatasetReference",
-											"parameters": {
-												"inputcontainer": {
-													"value": "@pipeline().parameters.sink_container",
-													"type": "Expression"
-												},
-												"inputdirectory": {
-													"value": "@{pipeline().parameters.sink_folder}/@{pipeline().parameters.db_name}/@{item().TABLE_SCHEMA}",
-													"type": "Expression"
-												},
-												"inputfile": {
-													"value": "@{item().TABLE_NAME}.@{pipeline().parameters.file_extension}",
-													"type": "Expression"
-												}
-											}
-										}
-									]
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"db_name": {
-						"type": "string"
-					},
-					"sink_container": {
-						"type": "string",
-						"defaultValue": "raw"
-					},
-					"sink_folder": {
-						"type": "string",
-						"defaultValue": "bronze"
-					},
-					"file_extension": {
-						"type": "string",
-						"defaultValue": ".parquet"
-					}
-				},
-				"variables": {
-					"p_lodeDate": {
-						"type": "String"
-					}
-				},
-				"annotations": [],
-				"lastPublishTime": "2026-10-16T18:02:53Z"
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/datasets/SqlServerOmpremTable')]",
