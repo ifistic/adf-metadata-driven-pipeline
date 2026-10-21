@@ -536,6 +536,264 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/DeltaLoad_PL')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup_Oldwatermark",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "AzureSqlTable_sales",
+								"type": "DatasetReference",
+								"parameters": {
+									"dbname": "sales_db",
+									"schema": "dbo",
+									"table": "OldWatermark"
+								}
+							}
+						}
+					},
+					{
+						"name": "Lookup_newwatermark",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"sqlReaderQuery": "SELECT MAX(ModifiedDate) AS NewWatermark\nFROM dbo.Customer;",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"dataset": {
+								"referenceName": "AzureSqlTable_sales",
+								"type": "DatasetReference",
+								"parameters": {
+									"dbname": "sales_db",
+									"schema": "dbo",
+									"table": "Customer"
+								}
+							}
+						}
+					},
+					{
+						"name": "Copy data_for_delta_load",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Lookup_Oldwatermark",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							},
+							{
+								"activity": "Lookup_newwatermark",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "AzureSqlSource",
+								"queryTimeout": "02:00:00",
+								"partitionOption": "None"
+							},
+							"sink": {
+								"type": "ParquetSink",
+								"storeSettings": {
+									"type": "AzureBlobFSWriteSettings"
+								},
+								"formatSettings": {
+									"type": "ParquetWriteSettings"
+								}
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "AzureSqlTable_sales",
+								"type": "DatasetReference",
+								"parameters": {
+									"dbname": "salesdb",
+									"schema": "dbo",
+									"table": "customer"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "ParquetSink_dataset",
+								"type": "DatasetReference",
+								"parameters": {
+									"container": "input",
+									"folder": {
+										"value": "@concat('Customer/', formatDateTime(utcNow(), 'yyyy/MM/dd'))",
+										"type": "Expression"
+									},
+									"file": "Customer_delta.parquet"
+								}
+							}
+						]
+					},
+					{
+						"name": "Stored procedureFor undating watermark",
+						"type": "SqlServerStoredProcedure",
+						"dependsOn": [
+							{
+								"activity": "Copy data_for_delta_load",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"storedProcedureName": "[[dbo].[usp_UpdateOldWatermark]"
+						},
+						"linkedServiceName": {
+							"referenceName": "LS_AzureSQL",
+							"type": "LinkedServiceReference",
+							"parameters": {
+								"DBName": "SalesDB"
+							}
+						}
+					},
+					{
+						"name": "Copy data_for_delta_load_copy1",
+						"type": "Copy",
+						"dependsOn": [
+							{
+								"activity": "Stored procedureFor undating watermark",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "ParquetSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "ParquetReadSettings"
+								}
+							},
+							"sink": {
+								"type": "AzureSqlSink",
+								"writeBehavior": "insert",
+								"sqlWriterUseTableLock": false
+							},
+							"enableStaging": false,
+							"translator": {
+								"type": "TabularTranslator",
+								"typeConversion": true,
+								"typeConversionSettings": {
+									"allowDataTruncation": true,
+									"treatBooleanAsNumber": false
+								}
+							}
+						},
+						"inputs": [
+							{
+								"referenceName": "ParquetSink_dataset",
+								"type": "DatasetReference",
+								"parameters": {
+									"container": "input",
+									"folder": {
+										"value": "@concat('Customer/', formatDateTime(utcNow(), 'yyyy/MM/dd'))",
+										"type": "Expression"
+									},
+									"file": "Customer_delta.parquet"
+								}
+							}
+						],
+						"outputs": [
+							{
+								"referenceName": "AzureSqlTable_sales",
+								"type": "DatasetReference",
+								"parameters": {
+									"dbname": "demo_db",
+									"schema": "dbo",
+									"table": {
+										"value": "@activity('Copy data_for_delta_load').output.value",
+										"type": "Expression"
+									}
+								}
+							}
+						]
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"annotations": []
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/AzureSqlTable_sales')]",
+				"[concat(variables('factoryId'), '/datasets/ParquetSink_dataset')]",
+				"[concat(variables('factoryId'), '/linkedServices/LS_AzureSQL')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/PL_Metadata')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -1200,160 +1458,6 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/SqlServer2')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/DeltaLoad_PL')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "Lookup_Oldwatermark",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "AzureSqlTable_sales",
-								"type": "DatasetReference",
-								"parameters": {
-									"dbname": "sales_db",
-									"schema": "dbo",
-									"table": "OldWatermark"
-								}
-							}
-						}
-					},
-					{
-						"name": "Lookup_newwatermark",
-						"type": "Lookup",
-						"dependsOn": [],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "AzureSqlSource",
-								"sqlReaderQuery": "SELECT MAX(ModifiedDate) AS NewWatermark\nFROM dbo.Customer;",
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"dataset": {
-								"referenceName": "AzureSqlTable_sales",
-								"type": "DatasetReference",
-								"parameters": {
-									"dbname": "sales_db",
-									"schema": "dbo",
-									"table": "Customer"
-								}
-							}
-						}
-					},
-					{
-						"name": "Copy data_for_delta_load",
-						"type": "Copy",
-						"dependsOn": [
-							{
-								"activity": "Lookup_Oldwatermark",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							},
-							{
-								"activity": "Lookup_newwatermark",
-								"dependencyConditions": [
-									"Succeeded"
-								]
-							}
-						],
-						"policy": {
-							"timeout": "0.12:00:00",
-							"retry": 0,
-							"retryIntervalInSeconds": 30,
-							"secureOutput": false,
-							"secureInput": false
-						},
-						"userProperties": [],
-						"typeProperties": {
-							"source": {
-								"type": "SqlServerSource",
-								"sqlReaderQuery": {
-									"value": "@concat(\n    'SELECT * FROM dbo.Customer WHERE ModifiedDate > ''',\n    activity('Lookup_Oldwatermark').output.firstRow.oldwatermark,\n    ''' AND ModifiedDate <= ''',\n    activity('Lookup_newwatermark').output.firstRow.NewWatermark,\n    ''''\n)",
-									"type": "Expression"
-								},
-								"queryTimeout": "02:00:00",
-								"partitionOption": "None"
-							},
-							"sink": {
-								"type": "ParquetSink",
-								"storeSettings": {
-									"type": "AzureBlobFSWriteSettings"
-								},
-								"formatSettings": {
-									"type": "ParquetWriteSettings"
-								}
-							},
-							"enableStaging": false,
-							"translator": {
-								"type": "TabularTranslator",
-								"typeConversion": true,
-								"typeConversionSettings": {
-									"allowDataTruncation": true,
-									"treatBooleanAsNumber": false
-								}
-							}
-						},
-						"inputs": [
-							{
-								"referenceName": "SqlServerOmpremTable",
-								"type": "DatasetReference",
-								"parameters": {
-									"table_name": "customer",
-									"table_schema": "demo_db",
-									"db_name": "master"
-								}
-							}
-						],
-						"outputs": [
-							{
-								"referenceName": "ParquetSink_dataset",
-								"type": "DatasetReference",
-								"parameters": {
-									"container": "input ",
-									"folder": "raw",
-									"file": "delta.csv"
-								}
-							}
-						]
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"annotations": []
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/AzureSqlTable_sales')]",
-				"[concat(variables('factoryId'), '/datasets/SqlServerOmpremTable')]",
-				"[concat(variables('factoryId'), '/datasets/ParquetSink_dataset')]"
 			]
 		},
 		{
