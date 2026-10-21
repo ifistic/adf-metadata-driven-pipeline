@@ -235,7 +235,7 @@
 							"dbname": "demo_db",
 							"schema": "dbo",
 							"table": {
-								"value": "@activity('Copy data_for_delta_load').output.value",
+								"value": "Customer_Target",
 								"type": "Expression"
 							}
 						}
