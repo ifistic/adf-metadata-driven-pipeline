@@ -10,8 +10,9 @@
 		"typeProperties": {
 			"location": {
 				"type": "AzureBlobFSLocation",
-				"folderPath": "AdventureWorksLT2025/SalesLT",
-				"fileSystem": "input"
+				"fileName": "adf_metadata_salesdb.csv",
+				"folderPath": "metadata",
+				"fileSystem": "raw"
 			},
 			"columnDelimiter": ",",
 			"escapeChar": "\\",
