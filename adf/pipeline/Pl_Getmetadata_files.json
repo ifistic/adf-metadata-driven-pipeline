@@ -143,7 +143,7 @@
 				"userProperties": [],
 				"typeProperties": {
 					"items": {
-						"value": "@activity('FilteronlyFlagsfiles').output.childItems",
+						"value": "@activity('Get MetadataFiles').output.childitems",
 						"type": "Expression"
 					},
 					"condition": {
@@ -228,6 +228,101 @@
 						"value": "@endswith(item().inputfile, '.parquet')",
 						"type": "Expression"
 					}
+				}
+			},
+			{
+				"name": "ForEachet_copy1",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "FilterOnlyParquetFiles",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('FilterOnlyParquetFiles').output.value",
+						"type": "Expression"
+					},
+					"activities": [
+						{
+							"name": "Copy dataFrom_Getmetadata_copy1",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "0.12:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "ParquetSource",
+									"storeSettings": {
+										"type": "AzureBlobFSReadSettings",
+										"recursive": false,
+										"wildcardFolderPath": "AdventureWorksLT2025/SalesLT",
+										"wildcardFileName": "*.parquet",
+										"enablePartitionDiscovery": false
+									},
+									"formatSettings": {
+										"type": "ParquetReadSettings"
+									}
+								},
+								"sink": {
+									"type": "ParquetSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "ParquetWriteSettings"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "ParquetSink_dataset",
+									"type": "DatasetReference",
+									"parameters": {
+										"container": "input",
+										"folder": " AdventureWorksLT2025/SalesLT",
+										"file": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "ParquetSink_dataset",
+									"type": "DatasetReference",
+									"parameters": {
+										"container": "input",
+										"folder": "example",
+										"file": {
+											"value": "@item().name",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
 				}
 			}
 		],
