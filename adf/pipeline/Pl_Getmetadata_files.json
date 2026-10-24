@@ -64,7 +64,7 @@
 							"userProperties": [],
 							"typeProperties": {
 								"source": {
-									"type": "ParquetSource",
+									"type": "DelimitedTextSource",
 									"storeSettings": {
 										"type": "AzureBlobFSReadSettings",
 										"recursive": false,
@@ -73,7 +73,7 @@
 										"enablePartitionDiscovery": false
 									},
 									"formatSettings": {
-										"type": "ParquetReadSettings"
+										"type": "DelimitedTextReadSettings"
 									}
 								},
 								"sink": {
@@ -97,30 +97,14 @@
 							},
 							"inputs": [
 								{
-									"referenceName": "ParquetSink_dataset",
-									"type": "DatasetReference",
-									"parameters": {
-										"container": "input",
-										"folder": " AdventureWorksLT2025/SalesLT",
-										"file": {
-											"value": "@item().name",
-											"type": "Expression"
-										}
-									}
+									"referenceName": "Getmetadataset",
+									"type": "DatasetReference"
 								}
 							],
 							"outputs": [
 								{
 									"referenceName": "ParquetSink_dataset",
-									"type": "DatasetReference",
-									"parameters": {
-										"container": "input",
-										"folder": "example",
-										"file": {
-											"value": "@item().name",
-											"type": "Expression"
-										}
-									}
+									"type": "DatasetReference"
 								}
 							]
 						}
