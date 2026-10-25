@@ -213,7 +213,7 @@
 							"type": "Copy",
 							"dependsOn": [
 								{
-									"activity": "Drop_table_Script",
+									"activity": "Truncate_table_Script",
 									"dependencyConditions": [
 										"Succeeded"
 									]
@@ -289,7 +289,7 @@
 							]
 						},
 						{
-							"name": "Drop_table_Script",
+							"name": "Truncate_table_Script",
 							"type": "Script",
 							"dependsOn": [],
 							"policy": {
