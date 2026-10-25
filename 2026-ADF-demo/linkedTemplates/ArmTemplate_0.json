@@ -1480,7 +1480,7 @@
 											{
 												"type": "NonQuery",
 												"text": {
-													"value": "IF OBJECT_ID(N'[@{item().sqlserverschema}].[@{item().sqlservertable}]', N'U') IS NOT NULL TRUNCATE TABLE [@{item().sqlserverschema}].[@{item().sqlservertable}]",
+													"value": "IF ('@{item().flag}' = '1' OR '@{item().flag}' = '0')\n   AND OBJECT_ID(N'[@{item().sqlserverschema}].[@{item().sqlservertable}]', N'U') IS NOT NULL\n    TRUNCATE TABLE [@{item().sqlserverschema}].[@{item().sqlservertable}];",
 													"type": "Expression"
 												}
 											}
@@ -1509,7 +1509,7 @@
 								"type": "Expression"
 							},
 							"condition": {
-								"value": "@equals(item().flag, '1')",
+								"value": "@equals(item().flag, '0')",
 								"type": "Expression"
 							}
 						}
