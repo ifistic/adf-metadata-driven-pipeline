@@ -1162,6 +1162,396 @@
 			]
 		},
 		{
+			"name": "[concat(parameters('factoryName'), '/PL_Metadata_Cloned_copyfor onefile')]",
+			"type": "Microsoft.DataFactory/factories/pipelines",
+			"apiVersion": "2018-06-01",
+			"properties": {
+				"activities": [
+					{
+						"name": "Lookup_metadata",
+						"type": "Lookup",
+						"dependsOn": [],
+						"policy": {
+							"timeout": "0.12:00:00",
+							"retry": 0,
+							"retryIntervalInSeconds": 30,
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"source": {
+								"type": "DelimitedTextSource",
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								},
+								"formatSettings": {
+									"type": "DelimitedTextReadSettings"
+								}
+							},
+							"dataset": {
+								"referenceName": "controlFileset",
+								"type": "DatasetReference",
+								"parameters": {
+									"inputcontainer": {
+										"value": "@pipeline().parameters.p_meta_container",
+										"type": "Expression"
+									},
+									"inputfolder": {
+										"value": "@pipeline().parameters.p_meta_folder",
+										"type": "Expression"
+									},
+									"iinputfile": {
+										"value": "@pipeline().parameters.p_meta_file",
+										"type": "Expression"
+									}
+								}
+							},
+							"firstRowOnly": false
+						}
+					},
+					{
+						"name": "ForEachTable",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "Set variable_for_DateTime",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Filter1').output.value",
+								"type": "Expression"
+							},
+							"batchCount": 1,
+							"activities": [
+								{
+									"name": "Copy tables",
+									"type": "Copy",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "DelimitedTextSource",
+											"additionalColumns": [
+												{
+													"name": "load_date",
+													"value": {
+														"value": "@variables('v_load_date')",
+														"type": "Expression"
+													}
+												},
+												{
+													"name": "source_file",
+													"value": "$$FILEPATH"
+												}
+											],
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true,
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "DelimitedTextReadSettings"
+											}
+										},
+										"sink": {
+											"type": "ParquetSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "ParquetWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "MetadataSet",
+											"type": "DatasetReference",
+											"parameters": {
+												"inputcontainer": {
+													"value": "@item().inputcontainer",
+													"type": "Expression"
+												},
+												"inputfolder": {
+													"value": "@item().inputfolder",
+													"type": "Expression"
+												},
+												"iinputfile": {
+													"value": "@item().inputfile",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "ParquetSink_dataset",
+											"type": "DatasetReference",
+											"parameters": {
+												"container": {
+													"value": "@item().sinkcontainer",
+													"type": "Expression"
+												},
+												"folder": {
+													"value": "@concat(item().sinkfolder, '/', item().sqlservertable, '/year=', substring(variables('v_load_date'),0,4), '/month=', substring(variables('v_load_date'),5,2), '/day=', substring(variables('v_load_date'),8,2))",
+													"type": "Expression"
+												},
+												"file": {
+													"value": "@item().sinkfile",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
+						}
+					},
+					{
+						"name": "Set variable_for_DateTime",
+						"type": "SetVariable",
+						"dependsOn": [
+							{
+								"activity": "Filter1",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"policy": {
+							"secureOutput": false,
+							"secureInput": false
+						},
+						"userProperties": [],
+						"typeProperties": {
+							"variableName": "v_load_date",
+							"value": {
+								"value": "@if(empty(pipeline().parameters.p_load_date), formatDateTime(pipeline().TriggerTime, 'yyyy-MM-dd'), pipeline().parameters.p_load_date)",
+								"type": "Expression"
+							}
+						}
+					},
+					{
+						"name": "ForEachsqlTable",
+						"type": "ForEach",
+						"dependsOn": [
+							{
+								"activity": "ForEachTable",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup_metadata').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "CopyDataToSqlServer",
+									"type": "Copy",
+									"dependsOn": [
+										{
+											"activity": "Truncate_table_Script",
+											"dependencyConditions": [
+												"Succeeded"
+											]
+										}
+									],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "ParquetSource",
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": true,
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "ParquetReadSettings"
+											}
+										},
+										"sink": {
+											"type": "AzureSqlSink",
+											"writeBehavior": "insert",
+											"sqlWriterUseTableLock": false,
+											"tableOption": "autoCreate",
+											"disableMetricsCollection": false
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "ParquetSink_dataset",
+											"type": "DatasetReference",
+											"parameters": {
+												"container": "@item().sinkcontainer",
+												"folder": "@concat(item().sinkfolder, '/', item().sqlservertable, '/year=', substring(variables('v_load_date'),0,4), '/month=', substring(variables('v_load_date'),5,2), '/day=', substring(variables('v_load_date'),8,2))",
+												"file": "@item().sinkfile"
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "AzureSqlTable_sales",
+											"type": "DatasetReference",
+											"parameters": {
+												"dbname": {
+													"value": "@item().sqlserverdatabase",
+													"type": "Expression"
+												},
+												"schema": {
+													"value": "@item().sqlserverschema",
+													"type": "Expression"
+												},
+												"table": {
+													"value": "@item().sqlservertable",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								},
+								{
+									"name": "Truncate_table_Script",
+									"type": "Script",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 2,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"linkedServiceName": {
+										"referenceName": "LS_AzureSQL",
+										"type": "LinkedServiceReference",
+										"parameters": {
+											"DBName": {
+												"value": "@item().sqlserverdatabase",
+												"type": "Expression"
+											}
+										}
+									},
+									"typeProperties": {
+										"scripts": [
+											{
+												"type": "NonQuery",
+												"text": {
+													"value": "IF OBJECT_ID(N'[@{item().sqlserverschema}].[@{item().sqlservertable}]', N'U') IS NOT NULL TRUNCATE TABLE [@{item().sqlserverschema}].[@{item().sqlservertable}]",
+													"type": "Expression"
+												}
+											}
+										],
+										"scriptBlockExecutionTimeout": "02:00:00"
+									}
+								}
+							]
+						}
+					},
+					{
+						"name": "Filter1",
+						"type": "Filter",
+						"dependsOn": [
+							{
+								"activity": "Lookup_metadata",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('Lookup_metadata').output.value",
+								"type": "Expression"
+							},
+							"condition": {
+								"value": "@equals(item().flag, '1')",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"policy": {
+					"elapsedTimeMetric": {}
+				},
+				"parameters": {
+					"p_meta_container": {
+						"type": "string",
+						"defaultValue": "bronze"
+					},
+					"p_meta_folder": {
+						"type": "string",
+						"defaultValue": "metadata"
+					},
+					"p_meta_file": {
+						"type": "string",
+						"defaultValue": "adf_metadata_salesdb_complete.csv"
+					},
+					"p_load_date": {
+						"type": "string"
+					}
+				},
+				"variables": {
+					"v_load_date": {
+						"type": "String"
+					}
+				},
+				"annotations": [],
+				"lastPublishTime": "2026-10-16T22:17:45Z"
+			},
+			"dependsOn": [
+				"[concat(variables('factoryId'), '/datasets/controlFileset')]",
+				"[concat(variables('factoryId'), '/datasets/MetadataSet')]",
+				"[concat(variables('factoryId'), '/datasets/ParquetSink_dataset')]",
+				"[concat(variables('factoryId'), '/datasets/AzureSqlTable_sales')]",
+				"[concat(variables('factoryId'), '/linkedServices/LS_AzureSQL')]"
+			]
+		},
+		{
 			"name": "[concat(parameters('factoryName'), '/Pl_Getmetadata_files')]",
 			"type": "Microsoft.DataFactory/factories/pipelines",
 			"apiVersion": "2018-06-01",
@@ -1230,7 +1620,7 @@
 									"userProperties": [],
 									"typeProperties": {
 										"source": {
-											"type": "ParquetSource",
+											"type": "DelimitedTextSource",
 											"storeSettings": {
 												"type": "AzureBlobFSReadSettings",
 												"recursive": false,
@@ -1239,7 +1629,7 @@
 												"enablePartitionDiscovery": false
 											},
 											"formatSettings": {
-												"type": "ParquetReadSettings"
+												"type": "DelimitedTextReadSettings"
 											}
 										},
 										"sink": {
@@ -1263,16 +1653,9 @@
 									},
 									"inputs": [
 										{
-											"referenceName": "ParquetSink_dataset",
+											"referenceName": "Getmetadataset",
 											"type": "DatasetReference",
-											"parameters": {
-												"container": "input",
-												"folder": " AdventureWorksLT2025/SalesLT",
-												"file": {
-													"value": "@item().name",
-													"type": "Expression"
-												}
-											}
+											"parameters": {}
 										}
 									],
 									"outputs": [
@@ -1281,11 +1664,8 @@
 											"type": "DatasetReference",
 											"parameters": {
 												"container": "input",
-												"folder": "example",
-												"file": {
-													"value": "@item().name",
-													"type": "Expression"
-												}
+												"folder": "bronze",
+												"file": "getmetadata_file.csv"
 											}
 										}
 									]
@@ -1309,7 +1689,7 @@
 						"userProperties": [],
 						"typeProperties": {
 							"items": {
-								"value": "@activity('FilteronlyFlagsfiles').output.childItems",
+								"value": "@activity('Get MetadataFiles').output.childitems",
 								"type": "Expression"
 							},
 							"condition": {
@@ -1395,6 +1775,105 @@
 								"value": "@endswith(item().inputfile, '.parquet')",
 								"type": "Expression"
 							}
+						}
+					},
+					{
+						"name": "ForEachet_copy1",
+						"type": "ForEach",
+						"state": "Inactive",
+						"onInactiveMarkAs": "Succeeded",
+						"dependsOn": [
+							{
+								"activity": "FilterOnlyParquetFiles",
+								"dependencyConditions": [
+									"Succeeded"
+								]
+							}
+						],
+						"userProperties": [],
+						"typeProperties": {
+							"items": {
+								"value": "@activity('FilterOnlyParquetFiles').output.value",
+								"type": "Expression"
+							},
+							"activities": [
+								{
+									"name": "Copy dataFrom_Getmetadata_copy1",
+									"type": "Copy",
+									"state": "Inactive",
+									"onInactiveMarkAs": "Succeeded",
+									"dependsOn": [],
+									"policy": {
+										"timeout": "0.12:00:00",
+										"retry": 0,
+										"retryIntervalInSeconds": 30,
+										"secureOutput": false,
+										"secureInput": false
+									},
+									"userProperties": [],
+									"typeProperties": {
+										"source": {
+											"type": "ParquetSource",
+											"storeSettings": {
+												"type": "AzureBlobFSReadSettings",
+												"recursive": false,
+												"wildcardFolderPath": "AdventureWorksLT2025/SalesLT",
+												"wildcardFileName": "*.parquet",
+												"enablePartitionDiscovery": false
+											},
+											"formatSettings": {
+												"type": "ParquetReadSettings"
+											}
+										},
+										"sink": {
+											"type": "ParquetSink",
+											"storeSettings": {
+												"type": "AzureBlobFSWriteSettings"
+											},
+											"formatSettings": {
+												"type": "ParquetWriteSettings"
+											}
+										},
+										"enableStaging": false,
+										"translator": {
+											"type": "TabularTranslator",
+											"typeConversion": true,
+											"typeConversionSettings": {
+												"allowDataTruncation": true,
+												"treatBooleanAsNumber": false
+											}
+										}
+									},
+									"inputs": [
+										{
+											"referenceName": "ParquetSink_dataset",
+											"type": "DatasetReference",
+											"parameters": {
+												"container": "input",
+												"folder": " AdventureWorksLT2025/SalesLT",
+												"file": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									],
+									"outputs": [
+										{
+											"referenceName": "ParquetSink_dataset",
+											"type": "DatasetReference",
+											"parameters": {
+												"container": "input",
+												"folder": "example",
+												"file": {
+													"value": "@item().name",
+													"type": "Expression"
+												}
+											}
+										}
+									]
+								}
+							]
 						}
 					}
 				],
@@ -1540,148 +2019,6 @@
 			},
 			"dependsOn": [
 				"[concat(variables('factoryId'), '/linkedServices/SqlServer2')]"
-			]
-		},
-		{
-			"name": "[concat(parameters('factoryName'), '/PL_copy_tables')]",
-			"type": "Microsoft.DataFactory/factories/pipelines",
-			"apiVersion": "2018-06-01",
-			"properties": {
-				"activities": [
-					{
-						"name": "ForEach_tables",
-						"type": "ForEach",
-						"dependsOn": [],
-						"userProperties": [],
-						"typeProperties": {
-							"items": {
-								"value": "@pipeline().parameters.pTables",
-								"type": "Expression"
-							},
-							"activities": [
-								{
-									"name": "Copy_Tables",
-									"type": "Copy",
-									"dependsOn": [],
-									"policy": {
-										"timeout": "0.12:00:00",
-										"retry": 0,
-										"retryIntervalInSeconds": 30,
-										"secureOutput": false,
-										"secureInput": false
-									},
-									"userProperties": [],
-									"typeProperties": {
-										"source": {
-											"type": "SqlServerSource",
-											"sqlReaderQuery": {
-												"value": "@concat(\n    'SELECT * FROM [',\n    pipeline().parameters.pDatabase,\n    '].[',\n    item().table_schema,\n    '].[',\n    item().table_name,\n    ']'\n)",
-												"type": "Expression"
-											},
-											"queryTimeout": "02:00:00",
-											"partitionOption": "None"
-										},
-										"sink": {
-											"type": "DelimitedTextSink",
-											"storeSettings": {
-												"type": "AzureBlobFSWriteSettings"
-											},
-											"formatSettings": {
-												"type": "DelimitedTextWriteSettings",
-												"quoteAllText": true,
-												"fileExtension": ".txt"
-											}
-										},
-										"enableStaging": false,
-										"translator": {
-											"type": "TabularTranslator",
-											"typeConversion": true,
-											"typeConversionSettings": {
-												"allowDataTruncation": true,
-												"treatBooleanAsNumber": false
-											}
-										}
-									},
-									"inputs": [
-										{
-											"referenceName": "SqlServerOmpremTable",
-											"type": "DatasetReference",
-											"parameters": {
-												"table_name": {
-													"value": "@item().table_name",
-													"type": "Expression"
-												},
-												"table_schema": {
-													"value": "@item().table_schema",
-													"type": "Expression"
-												},
-												"db_name": "master"
-											}
-										}
-									],
-									"outputs": [
-										{
-											"referenceName": "input_sink_dataset",
-											"type": "DatasetReference",
-											"parameters": {
-												"inputcontainer": {
-													"value": "@pipeline().parameters.inputcontainer",
-													"type": "Expression"
-												},
-												"inputdirectory": {
-													"value": "@concat(\n    pipeline().parameters.inputfolder,\n    '/',\n    pipeline().parameters.pDatabase,\n    '/',\n    item().table_schema\n)",
-													"type": "Expression"
-												},
-												"inputfile": {
-													"value": "@concat(\n    item().table_name,\n    '.csv'\n)",
-													"type": "Expression"
-												}
-											}
-										}
-									]
-								}
-							]
-						}
-					}
-				],
-				"policy": {
-					"elapsedTimeMetric": {}
-				},
-				"parameters": {
-					"pTables": {
-						"type": "array"
-					},
-					"pDatabase": {
-						"type": "string"
-					},
-					"inputcontainer": {
-						"type": "string"
-					},
-					"inputfolder": {
-						"type": "string"
-					},
-					"inputfile": {
-						"type": "string"
-					},
-					"sink_container": {
-						"type": "string",
-						"defaultValue": "raw"
-					},
-					"sink_folder": {
-						"type": "string",
-						"defaultValue": "bronze"
-					},
-					"file_extension": {
-						"type": "string",
-						"defaultValue": "parquet"
-					}
-				},
-				"annotations": [],
-				"lastPublishTime": "2026-10-12T19:32:32Z"
-			},
-			"dependsOn": [
-				"[concat(variables('factoryId'), '/datasets/SqlServerOmpremTable')]",
-				"[concat(variables('factoryId'), '/datasets/input_sink_dataset')]"
 			]
 		}
 	]
