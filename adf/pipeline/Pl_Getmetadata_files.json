@@ -104,7 +104,12 @@
 							"outputs": [
 								{
 									"referenceName": "ParquetSink_dataset",
-									"type": "DatasetReference"
+									"type": "DatasetReference",
+									"parameters": {
+										"container": "input",
+										"folder": "bronze",
+										"file": "getmetadata_file.csv"
+									}
 								}
 							]
 						}
